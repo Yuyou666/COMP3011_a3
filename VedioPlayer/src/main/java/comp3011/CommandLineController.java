@@ -120,7 +120,7 @@ public class CommandLineController {
             case '2' -> setDisplayId(2);
 
             case 'n' -> frameProcessors.add(new FrameNumberer());
-            case 's' -> subtitleRequested = true;
+            case 's', 'S' -> subtitleRequested = true;
             case 'r' -> frameProcessors.add(new FrameScratcher());
             case 'f' -> frameProcessors.add(new FrameFlickerer());
             case 'w' -> frameProcessors.add(new FrameBlackAndWhiter());

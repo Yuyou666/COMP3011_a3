@@ -94,7 +94,7 @@ public class VideoPlayerController {
             } else if (event.getCode() == KeyCode.A) {
                 toggleAudioOutput();
                 event.consume();
-            } else if (event.getCode() == KeyCode.C) {
+            } else if (event.getCode() == KeyCode.S || event.getCode() == KeyCode.C) {
                 toggleSubtitles();
                 event.consume();
             }
