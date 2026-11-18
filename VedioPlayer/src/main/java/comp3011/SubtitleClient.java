@@ -15,7 +15,6 @@ import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 /** Background-only adapter. Caption JSON is cached locally across player/server restarts. */
 public final class SubtitleClient {
@@ -42,22 +41,11 @@ public final class SubtitleClient {
 
         Path temp = Files.createTempFile("comp3011-a3-audio-", ".mp3");
         try {
-            Process process;
-            try {
-                process = new ProcessBuilder("ffmpeg", "-nostdin", "-y", "-loglevel", "error",
-                        "-i", video.getAbsolutePath(), "-vn", "-ac", "1", "-ar", "16000",
-                        "-codec:a", "libmp3lame", temp.toString())
-                        .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
-            } catch (java.io.IOException e) {
-                throw new IllegalStateException("FFmpeg unavailable (check PATH)", e);
-            }
-            if (!process.waitFor(90, TimeUnit.SECONDS)) {
-                process.destroyForcibly();
-                throw new IllegalStateException("Audio extraction timed out");
-            }
-            if (process.exitValue() != 0 || Files.size(temp) == 0) {
-                throw new IllegalStateException("Could not extract audio from video");
-            }
+            // JavaCV includes native FFmpeg libraries; unlike ProcessBuilder("ffmpeg"),
+            // this works on machines without a system-wide FFmpeg installation.
+            SubtitleAudioExtractor.extractMp3(video, temp);
+            System.out.println("[Subtitle] Extracted audio from " + video.getName()
+                    + " (" + Files.size(temp) + " bytes)");
             byte[] audio = Files.readAllBytes(temp);
             String boundary = "----A3" + UUID.randomUUID().toString().replace("-", "");
             byte[] before = ("--" + boundary + "\r\n"
@@ -71,9 +59,11 @@ public final class SubtitleClient {
                     .build();
             // Only retry failures before a connection is established. An ambiguous HTTP
             // timeout might mean Whisper was already called; do not automatically resend it.
+            System.out.println("[Subtitle] Requesting " + ENDPOINT);
             HttpResponse<String> response = SubtitleRetry.call(
                     () -> HTTP.send(req, HttpResponse.BodyHandlers.ofString()),
                     SubtitleRetry::isPreConnectionFailure);
+            System.out.println("[Subtitle] HTTP " + response.statusCode());
             if (response.statusCode() != 200) {
                 String body = response.body() == null ? "" : response.body().strip();
                 if (body.length() > 160) body = body.substring(0, 160) + "...";

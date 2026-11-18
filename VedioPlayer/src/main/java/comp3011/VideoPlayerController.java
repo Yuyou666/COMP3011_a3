@@ -160,6 +160,8 @@ public class VideoPlayerController {
                     }
                 });
             } catch (Exception error) {
+                System.err.println("[Subtitle] Failed to fetch subtitles for " + source.getName());
+                error.printStackTrace();
                 Platform.runLater(() -> {
                     if (request != subtitleRequestGeneration || source != subtitleVideo) return;
                     subtitleLoading = false;

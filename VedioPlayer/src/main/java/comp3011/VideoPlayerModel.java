@@ -44,6 +44,10 @@ public class VideoPlayerModel {
     private static final long AUDIO_LEAD_NS = 30_000_000L;
     private static final int PROCESSING_WORKERS = 4;
     private static final int MAX_PENDING_FRAMES = 8;
+    // A late renderer must not spend additional CPU processing frames that can
+    // no longer be displayed on time. Bound the scan to protect the FX thread.
+    private static final long MAX_VIDEO_LATENESS_NS = 750_000_000L;
+    private static final int MAX_CATCH_UP_GRABS = 8;
 
     private final List<FrameProcessor> frameProcessors;
     private final Queue<PendingAudio> pendingAudio = new ArrayDeque<>();
@@ -314,6 +318,7 @@ public class VideoPlayerModel {
     }
 
     private void submitNextVideoFrame() throws Exception {
+        int lateFramesSkipped = 0;
         while (playbackOpen) {
 			Frame frame = grabFrame();
 			if (frame == null) {
@@ -362,11 +367,30 @@ public class VideoPlayerModel {
             InfoFrame info = new InfoFrame(frameNumber, timestampUs);
             // FFmpeg's decoder may reuse its buffers after the next grab.
             // Transfer an independent clone to the worker, not its buffer.
-            Frame ownedFrame = frame.clone();
             long relativeTimestampUs = Math.max(0, timestampUs - firstTimestampUs);
             long logicalTimestampUs = logicalPlaybackBaseUs + relativeTimestampUs;
             long targetTimeNs = playbackStartNs + relativeTimestampUs * 1_000L;
 
+            // Catch up when decoding/processing has fallen far behind the media
+            // clock. Skipped frames are not submitted to the worker pipeline,
+            // so the remaining frames still retain their normal order and all
+            // existing effects behave the same on frames that are displayed.
+            // Never skip a frame near the end of the media: the final visual
+            // frame must remain available for the end-of-playback screen.
+            boolean nearEnd = videoDurationUs != NO_SEEK_REQUEST
+                    && timestampUs >= videoDurationUs - 200_000L;
+            if (!nearEnd && !pauseRequested
+                    && System.nanoTime() - targetTimeNs > MAX_VIDEO_LATENESS_NS) {
+                lateFramesSkipped++;
+                if (lateFramesSkipped >= MAX_CATCH_UP_GRABS) {
+                    // Yield to JavaFX rather than decoding indefinitely inside
+                    // one GUI callback. The next pulse can continue catching up.
+                    return;
+                }
+                continue;
+            }
+
+            Frame ownedFrame = frame.clone();
             FrameProcessingJob job = new FrameProcessingJob(
                     ownedFrame, info, playbackGeneration,
                     logicalTimestampUs, targetTimeNs);
