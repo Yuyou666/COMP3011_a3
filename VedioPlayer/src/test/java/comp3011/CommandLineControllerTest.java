@@ -1,6 +1,8 @@
 
 package comp3011;
 
+import org.junit.jupiter.api.Test;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,6 +14,12 @@ import java.util.List;
  */
 public class CommandLineControllerTest {
 
+    @Test
+    void runExistingChecks() throws Exception {
+        main(new String[0]);
+    }
+
+
     private static int passed = 0;
 
     public static void main(String[] args) throws IOException {
@@ -20,9 +28,9 @@ public class CommandLineControllerTest {
         try {
             String path = video.getAbsolutePath();
 
-            // Test all eleven short options and their expected processors.
+            // Test all eleven frame-effect short options and their expected processors.
             checkProcessors("Short options",
-                new String[] {"-nsfwyvdjmbp", path},
+                new String[] {"-nrfwyvdjmbp", path},
                 "FrameNumberer", "FrameScratcher", "FrameFlickerer",
                 "FrameBlackAndWhiter", "FrameYellower",
                 "FrameVignetter", "FrameDuster", "FrameJitterer",
@@ -45,7 +53,7 @@ public class CommandLineControllerTest {
 
             // Repeated processors must remain in their original positions.
             checkProcessors("Repeated effects",
-                new String[] {"-nssnf", path},
+                new String[] {"-nrrnf", path},
                 "FrameNumberer", "FrameScratcher",
                 "FrameScratcher", "FrameNumberer",
                 "FrameFlickerer");
@@ -59,7 +67,7 @@ public class CommandLineControllerTest {
                 "FrameDuster", "FrameDuster", "FrameNumberer");
 
             CommandLineController repeated =
-                new CommandLineController(new String[] {"-ss", path});
+                new CommandLineController(new String[] {"-rr", path});
 
             List<FrameProcessor> processors =
                 repeated.getFrameProcessors();
@@ -78,6 +86,32 @@ public class CommandLineControllerTest {
                 && original.isAudioRequested()
                 && original.isMaximiseRequested()
                 && Integer.valueOf(1).equals(original.getDisplayId()));
+
+            CommandLineController shortSubtitles =
+                new CommandLineController(new String[] {"-s", path});
+            check("Subtitle short option enabled",
+                shortSubtitles.shouldLaunchApplication()
+                && shortSubtitles.isSubtitleRequested()
+                && shortSubtitles.getFrameProcessors().isEmpty());
+
+            CommandLineController longSubtitles =
+                new CommandLineController(new String[] {"--subtitle-frames", path});
+            check("Subtitle long option enabled",
+                longSubtitles.shouldLaunchApplication()
+                && longSubtitles.isSubtitleRequested());
+
+            CommandLineController both =
+                new CommandLineController(new String[] {"-srn", path});
+            check("Subtitle option stacks with effects",
+                both.shouldLaunchApplication()
+                && both.isSubtitleRequested()
+                && both.getFrameProcessors().size() == 2
+                && both.getFrameProcessors().get(0) instanceof FrameScratcher
+                && both.getFrameProcessors().get(1) instanceof FrameNumberer);
+
+            check("Scratch long option preserved",
+                new CommandLineController(new String[] {"--scratch-frames", path})
+                    .getFrameProcessors().get(0) instanceof FrameScratcher);
 
             check("Unknown option rejected",
                 !new CommandLineController(

@@ -1,9 +1,17 @@
 
 package comp3011;
 
+import org.junit.jupiter.api.Test;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class FrameProcessingPipelineTest {
+
+    @Test
+    void runExistingChecks() throws Exception {
+        main(new String[0]);
+    }
+
 
     public static void main(String[] args) throws Exception {
         AtomicInteger active = new AtomicInteger();

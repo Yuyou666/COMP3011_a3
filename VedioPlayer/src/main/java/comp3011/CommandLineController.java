@@ -120,7 +120,8 @@ public class CommandLineController {
             case '2' -> setDisplayId(2);
 
             case 'n' -> frameProcessors.add(new FrameNumberer());
-            case 's' -> frameProcessors.add(new FrameScratcher());
+            case 's' -> subtitleRequested = true;
+            case 'r' -> frameProcessors.add(new FrameScratcher());
             case 'f' -> frameProcessors.add(new FrameFlickerer());
             case 'w' -> frameProcessors.add(new FrameBlackAndWhiter());
             case 'y' -> frameProcessors.add(new FrameYellower());
@@ -185,7 +186,7 @@ public class CommandLineController {
         System.out.println("Options:");
         System.out.println("  -h, --help         Show this help message");
         System.out.println("  -a, --audio        Play audio");
-        System.out.println("      --subtitle-frames  Enable subtitles when video starts");
+        System.out.println("  -s, --subtitle-frames  Enable subtitles when video starts");
         System.out.println("  -x, --maximise     Open the player maximised");
         System.out.println("  -1, --monitor-1    Open the player on display 1");
         System.out.println("  -2, --monitor-2    Open the player on display 2");
@@ -193,7 +194,7 @@ public class CommandLineController {
         System.out.println();
         System.out.println("Frame processors:");
         System.out.println("  -n, --number-frames    Render the frame number onto each frame");
-        System.out.println("  -s, --scratch-frames   Render vertical film scratches");
+        System.out.println("  -r, --scratch-frames   Render vertical film scratches");
         System.out.println("  -f, --flicker-frames   Randomly dim frames");
         System.out.println("  -w, --black-and-white  Convert frames to black and white");
         System.out.println("  -y, --yellow-frames    Apply a warmer colour temperature");
@@ -205,7 +206,7 @@ public class CommandLineController {
         System.out.println("  -p, --pepper-frames    Pepper frames with dark spots/blotches");
         System.out.println();
         System.out.println("Frame processors are applied in command-line order and may be repeated.");
-        System.out.println("Example: -nssnfwyvdjmbp numbers, scratches twice, numbers again, flickers,");
+        System.out.println("Example: -nrrnfwyvdjmbp numbers, scratches twice, numbers again, flickers,");
         System.out.println("converts, warms, vignettes, dusts, jitters, mottles, bleeds, then peppers.");
     }
 }

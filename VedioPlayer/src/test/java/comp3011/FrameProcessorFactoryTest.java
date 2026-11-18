@@ -1,9 +1,17 @@
 package comp3011;
 
+import org.junit.jupiter.api.Test;
+
 import java.util.List;
 
 /** Run as Java Application; does not require JUnit or a video file. */
 public final class FrameProcessorFactoryTest {
+
+    @Test
+    void runExistingChecks() throws Exception {
+        main(new String[0]);
+    }
+
     public static void main(String[] args) {
         List<FrameProcessor> original = List.of(
             new FrameJitterer(), new FrameFlickerer(), new FrameJitterer(),
