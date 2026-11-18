@@ -3,6 +3,9 @@ package comp3011.assignment1.service;
 import comp3011.assignment1.dto.SubtitleResponse;
 import comp3011.assignment1.dto.WhisperVerboseResponse;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
@@ -22,6 +25,7 @@ import org.springframework.core.io.ByteArrayResource;
 /** Whisper transcription with single-flight, content-based caching. */
 @Service
 public class SubtitleService {
+    private static final Logger LOG = LoggerFactory.getLogger(SubtitleService.class);
     private final RestClient client;
     private final SubtitleUsageService usage;
     private final String apiKey;
@@ -39,6 +43,8 @@ public class SubtitleService {
         this.client = client;
         this.usage = usage;
         this.apiKey = apiKey;
+        LOG.info("[A3 subtitle] Service ready; OPENAI_API_KEY configured={}",
+                apiKey != null && !apiKey.isBlank());
     }
 
     public SubtitleResponse getSubtitles(MultipartFile audio) {
@@ -52,6 +58,8 @@ public class SubtitleService {
             throw new IllegalStateException("Unable to read uploaded audio", e);
         }
         String key = digest(bytes);
+        LOG.info("[A3 subtitle] Audio received; bytes={}, filenameExtension={}",
+                bytes.length, safeExtension(audio.getOriginalFilename()));
         // One in-progress future per audio file: concurrent requests share the same transcription.
         CompletableFuture<SubtitleResponse> own = new CompletableFuture<>();
         CompletableFuture<SubtitleResponse> current = cache.putIfAbsent(key, own);
@@ -87,6 +95,7 @@ public class SubtitleService {
             @Override public String getFilename() { return uploadName; }
         }).filename(uploadName);
 
+        LOG.info("[A3 subtitle] Sending audio to Whisper; bytes={}", bytes.length);
         WhisperVerboseResponse result = client.post()
                 .uri("/v1/audio/transcriptions")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
@@ -115,7 +124,17 @@ public class SubtitleService {
                         .toList();
         double duration = result.duration() == null ? 0.0 : result.duration();
         usage.addSeconds(duration);
+        LOG.info("[A3 subtitle] Usage increased by {} seconds; total={}",
+                duration, usage.totalSeconds());
         return new SubtitleResponse(segments, words);
+    }
+
+    private static String safeExtension(String filename) {
+        if (filename == null) return "unknown";
+        int dot = filename.lastIndexOf('.');
+        if (dot < 0) return "none";
+        String ext = filename.substring(dot + 1).replaceAll("[^A-Za-z0-9]", "");
+        return ext.substring(0, Math.min(10, ext.length()));
     }
 
     private static String digest(byte[] bytes) {
